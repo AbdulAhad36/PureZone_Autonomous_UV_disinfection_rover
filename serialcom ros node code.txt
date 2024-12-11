@@ -1,0 +1,66 @@
+#include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/String.h>
+#include <serial/serial.h> // If you use the serial library, ensure you have installed it
+
+serial::Serial ser;
+
+void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& msg) {
+    std::stringstream ss;
+    ss << "<" << msg->linear.x << "," << msg->angular.z << "," << msg->linear.y 
+       << "," << msg->angular.x << "," << msg->linear.z << "," << msg->angular.y << ">";
+    std::string cmd_str = ss.str();
+
+    // Send the command to the Arduino
+    if (ser.isOpen()) {
+        ser.write(cmd_str);
+    } else {
+        ROS_ERROR("Failed to send data. Serial port not open.");
+    }
+}
+
+void readSerialData(ros::Publisher &log_pub) {
+    if (ser.available()) {
+        std::string log_data = ser.read(ser.available());
+        std_msgs::String log_msg;
+        log_msg.data = log_data;
+        log_pub.publish(log_msg);
+        ROS_INFO("Arduino Log: %s", log_msg.data.c_str());
+    }
+}
+
+int main(int argc, char **argv) {
+    ros::init(argc, argv, "serialcom_node");
+    ros::NodeHandle nh;
+
+    ros::Subscriber sub = nh.subscribe("/cmd_vel", 10, cmdVelCallback);
+    ros::Publisher log_pub = nh.advertise<std_msgs::String>("arduino_logs", 1000);
+
+    try {
+        // Change the port and baudrate to match your Arduino settings
+        ser.setPort("/dev/ttyUSB1");
+        ser.setBaudrate(9600);
+        serial::Timeout to = serial::Timeout::simpleTimeout(1000);
+        ser.setTimeout(to);
+        ser.open();
+    } catch (serial::IOException& e) {
+        ROS_ERROR("Unable to open port");
+        return -1;
+    }
+
+    if (ser.isOpen()) {
+        ROS_INFO("Serial Port initialized");
+    } else {
+        return -1;
+    }
+
+    ros::Rate loop_rate(10); // 10 Hz
+    while (ros::ok()) {
+        readSerialData(log_pub);
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
+
+    ser.close();
+    return 0;
+}

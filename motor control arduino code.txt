@@ -1,0 +1,194 @@
+// Initialize variables for linear and angular velocities
+float linear_x = 0.0;
+float linear_y = 0.0;
+float linear_z = 0.0;
+float angular_z = 0.0;
+
+// Define pin numbers for Motor 1
+const int RPWM1 = 6;  // RPWM pin for Motor 1
+const int LPWM1 = 5;  // LPWM pin for Motor 1
+
+// Define pin numbers for Motor 2
+const int RPWM2 = 10;  // RPWM pin for Motor 2
+const int LPWM2 = 9;   // LPWM pin for Motor 2
+
+void setup() {
+    // Initialize serial communication
+    Serial.begin(9600);
+
+    // Initialize motor control pins as outputs
+    pinMode(RPWM1, OUTPUT);
+    pinMode(LPWM1, OUTPUT);
+    pinMode(RPWM2, OUTPUT);
+    pinMode(LPWM2, OUTPUT);
+
+    // Start with motors stopped
+    stopMotor1();
+    stopMotor2();
+}
+
+void loop() {
+    // Check if there's data available to read from the serial port
+    if (Serial.available() > 0) {
+        // Read the incoming byte
+        char incomingByte = Serial.read();
+
+        // Check if the incoming byte is the start of the message
+        if (incomingByte == '<') {
+            // Read the values for linear and angular velocities
+            while (Serial.available() < 14); // Wait for complete message
+            linear_x = Serial.parseFloat();
+            angular_z = Serial.parseFloat();
+            linear_y = Serial.parseFloat();
+            linear_z = Serial.parseFloat();
+            
+            // Read the end of message character
+            while (Serial.available() > 0 && Serial.read() != '>');
+
+            // Log the received values
+            logReceivedValues();
+
+            // Control the motors based on the received values
+            controlMotors(linear_x, angular_z);
+        }
+    }
+
+    // Add delay if needed to prevent flooding the serial port
+    delay(100);
+}
+
+// Function to control the motors based on linear and angular velocities
+void controlMotors(float linearX, float angularZ) {
+    int motor1Speed = 0;
+    int motor2Speed = 0;
+    int direction1 = 1;
+    int direction2 = 1;
+
+    // Determine which value is larger (in absolute terms) and set motor speeds accordingly
+    if (abs(linearX) > abs(angularZ)) {
+        // Use linearX to set the motor speeds
+        if (linearX >= 0) {
+            if (linearX <= 0.11 && linearX >= 0.03) {
+                motor1Speed = int(255 * 0.65);  // 75% of max speed
+                motor2Speed = int(255 * 0.65);  // 75% of max speed
+            } else if (linearX >= 0.3 && linearX <= 0.35) {
+                motor1Speed = int(255 * 0.65);  // 85% of max speed
+                motor2Speed = int(255 * 0.65);  // 85% of max speed
+            } else if (linearX >= 0.2 && linearX < 0.3) {
+                motor1Speed = int(255 * 0.60);  // 80% of max speed
+                motor2Speed = int(255 * 0.60);  // 80% of max speed
+            } else {
+                motor1Speed = int(linearX * 350);  // Normal scaling factor
+                motor2Speed = int(linearX * 350);  // Normal scaling factor
+            }
+            direction1 = 1;  // Forward
+            direction2 = 1;  // Forward
+        } else {
+            if (linearX >= -0.11 && linearX <= -0.03) {
+                motor1Speed = int(255 * 0.65);  // 75% of max speed
+                motor2Speed = int(255 * 0.65);  // 75% of max speed
+            } else if (linearX >= -0.35 && linearX <= -0.3) {
+                motor1Speed = int(255 * 0.65);  // 85% of max speed
+                motor2Speed = int(255 * 0.65);  // 85% of max speed
+            } else if (linearX >= -0.3 && linearX < -0.2) {
+                motor1Speed = int(255 * 0.60);  // 80% of max speed
+                motor2Speed = int(255 * 0.60);  // 80% of max speed
+            } else {
+                motor1Speed = int(-linearX * 350); // Normal scaling factor
+                motor2Speed = int(-linearX * 350); // Normal scaling factor
+            }
+            direction1 = -1;  // Backward
+            direction2 = -1;  // Backward
+        }
+    } else {
+        // Use angularZ to set the motor speeds
+        if (angularZ >= 0) {
+            if (angularZ <= 0.11 && angularZ >= 0.03) {
+                motor1Speed = int(255 * 0.65);  // 75% of max speed
+                motor2Speed = int(255 * 0.65);  // 75% of max speed
+            } else if (angularZ >= 0.3 && angularZ <= 0.35) {
+                motor1Speed = int(255 * 0.65);  // 85% of max speed
+                motor2Speed = int(255 * 0.65);  // 85% of max speed
+            } else if (angularZ >= 0.2 && angularZ < 0.3) {
+                motor1Speed = int(255 * 0.60);  // 80% of max speed
+                motor2Speed = int(255 * 0.60);  // 80% of max speed
+            } else if (angularZ > 0.9) {
+                motor1Speed = 0;
+                motor2Speed = 0;
+            } else {
+                motor1Speed = int(angularZ * 255);  // Normal scaling factor
+                motor2Speed = int(angularZ * 255);  // Normal scaling factor
+            }
+            direction1 = 1;  // Forward for Motor 1
+            direction2 = -1; // Backward for Motor 2
+        } else {
+            if (angularZ >= -0.11 && angularZ <= -0.03) {
+                motor1Speed = int(255 * 0.65);  // 75% of max speed
+                motor2Speed = int(255 * 0.65);  // 75% of max speed
+            } else if (angularZ >= -0.35 && angularZ <= -0.3) {
+                motor1Speed = int(255 * 0.65);  // 85% of max speed
+                motor2Speed = int(255 * 0.65);  // 85% of max speed
+            } else if (angularZ >= -0.3 && angularZ < -0.2) {
+                motor1Speed = int(255 * 0.60);  // 80% of max speed
+                motor2Speed = int(255 * 0.60);  // 80% of max speed
+            } else if (angularZ < -0.9) {
+                motor1Speed = 0;
+                motor2Speed = 0;
+            } else {
+                motor1Speed = int(-angularZ * 255);  // Normal scaling factor
+                motor2Speed = int(-angularZ * 255);  // Normal scaling factor
+            }
+            direction1 = -1;  // Backward for Motor 1
+            direction2 = 1;   // Forward for Motor 2
+        }
+    }
+
+    setMotor1(motor1Speed, direction1);
+    setMotor2(motor2Speed, direction2);
+}
+
+void setMotor1(int speed, int direction) {
+    // Ensure speed is within 0-255 range
+    speed = constrain(speed, 0, 255);
+
+    if (direction == 1) {
+        // Forward
+        analogWrite(RPWM1, speed);
+        analogWrite(LPWM1, 0);
+    } else if (direction == -1) {
+        // Reverse
+        analogWrite(RPWM1, 0);
+        analogWrite(LPWM1, speed);
+    }
+}
+
+void setMotor2(int speed, int direction) {
+    // Ensure speed is within 0-255 range
+    speed = constrain(speed, 0, 255);
+
+    if (direction == 1) {
+        // Forward
+        analogWrite(RPWM2, speed);
+        analogWrite(LPWM2, 0);
+    } else if (direction == -1) {
+        // Reverse
+        analogWrite(RPWM2, 0);
+        analogWrite(LPWM2, speed);
+    }
+}
+
+void stopMotor1() {
+    analogWrite(RPWM1, 0);
+    analogWrite(LPWM1, 0);
+}
+
+void stopMotor2() {
+    analogWrite(RPWM2, 0);
+    analogWrite(LPWM2, 0);
+}
+
+// Function to log the received values
+void logReceivedValues() {
+    String logMessage = "Received Twist Velocities -> Linear (x,y,z): (" + String(linear_x) + "," + String(linear_y) + "," + String(linear_z) + ") Angular (z): " + String(angular_z);
+    Serial.println(logMessage);
+}

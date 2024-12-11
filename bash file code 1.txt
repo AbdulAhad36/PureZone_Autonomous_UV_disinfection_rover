@@ -1,0 +1,14 @@
+#!/bin/bash
+
+
+
+
+# Launch second ROS package in a new terminal
+gnome-terminal -- bash -c "source /opt/ros/melodic/setup.bash; source ~/catkin_ws/devel/setup.bash; roslaunch hector_slam_launch tutorial.launch; exec bash"
+
+sleep 3
+
+ #Launch second ROS package in a new terminal
+gnome-terminal -- bash -c "source /opt/ros/melodic/setup.bash; source ~/catkin_ws/devel/setup.bash; roslaunch navigation navigation.launch; exec bash"
+
+gnome-terminal -- bash -c "source /opt/ros/melodic/setup.bash; source ~/catkin_ws/devel/setup.bash; roslaunch exploration_server exploration.launch; exec bash"
